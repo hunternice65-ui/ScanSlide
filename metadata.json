@@ -1,0 +1,7 @@
+{
+  "name": "VisionScan to Excel",
+  "description": "An advanced OCR system that extracts structured data from medical and industrial labels using Gemini AI and exports them directly to Excel files.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
