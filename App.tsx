@@ -7,7 +7,7 @@ import { ScanRecord } from './types';
 const App: React.FC = () => {
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0, labelsFound: 0 });
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -24,7 +24,7 @@ const App: React.FC = () => {
   const processFiles = async (files: FileList) => {
     setIsProcessing(true);
     setError(null);
-    setProgress({ current: 0, total: files.length, labelsFound: 0 });
+    setProgress({ current: 0, total: files.length });
     
     const newRecordsList: ScanRecord[] = [];
 
@@ -36,11 +36,9 @@ const App: React.FC = () => {
         const base64 = await readFileAsBase64(file);
         setPreviewImage(base64); 
         
-        // วิเคราะห์ภาพด้วยระบบ Intelligent Recognition
+        // เรียกใช้ระบบวิเคราะห์ข้อมูลอัตโนมัติ
         const extractedResults = await extractMultipleDataFromImage(base64);
         
-        setProgress(prev => ({ ...prev, labelsFound: prev.labelsFound + extractedResults.length }));
-
         extractedResults.forEach(data => {
           newRecordsList.push({
             ...data,
@@ -50,17 +48,18 @@ const App: React.FC = () => {
           });
         });
       } catch (err: any) {
-        console.error(`Error processing file ${file.name}:`, err);
-        setError(`ไม่สามารถอ่านข้อมูลจาก ${file.name} ได้: ${err.message}`);
+        console.error(`Error:`, err);
+        // แสดงข้อความ Error ที่เข้าใจง่ายขึ้น
+        if (err.message.includes('API Key')) {
+          setError('ระบบประมวลผลไม่พร้อมใช้งาน (กรุณาตรวจสอบการเชื่อมต่อ Engine)');
+        } else {
+          setError(`ไม่สามารถอ่านข้อมูลจากภาพได้: ${err.message}`);
+        }
       }
     }
 
     setRecords(prev => [...newRecordsList, ...prev]);
     setIsProcessing(false);
-    
-    setTimeout(() => {
-      setProgress(p => ({ ...p, labelsFound: 0 }));
-    }, 5000);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,66 +79,69 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="bg-indigo-600 p-2 rounded-xl shadow-indigo-200 shadow-lg">
-              <i className="fas fa-camera-viewfinder text-white text-xl"></i>
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="bg-slate-900 p-2.5 rounded-2xl">
+              <i className="fas fa-expand text-white text-xl"></i>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-800 leading-tight">VisionScan Pro</h1>
-              <p className="text-[10px] uppercase tracking-widest text-indigo-500 font-bold">Auto Label Recognition</p>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">VISION SCAN</h1>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Processing</span>
+              </div>
             </div>
           </div>
+          
           <div className="flex items-center space-x-3">
             {records.length > 0 && (
               <button 
                 onClick={clearAll}
-                className="text-slate-400 hover:text-red-500 p-2 text-sm transition-colors"
-                title="ล้างทั้งหมด"
+                className="hover:bg-red-50 text-slate-400 hover:text-red-500 w-10 h-10 rounded-xl transition-all flex items-center justify-center border border-transparent hover:border-red-100"
+                title="Clear all"
               >
-                <i className="fas fa-trash-alt"></i>
+                <i className="fas fa-trash-can"></i>
               </button>
             )}
             <button 
               onClick={() => exportToExcel(records)}
               disabled={records.length === 0 || isProcessing}
-              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white px-5 py-2.5 rounded-xl flex items-center space-x-2 transition-all shadow-md shadow-emerald-100 font-medium text-sm"
+              className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 text-white px-6 py-3 rounded-2xl flex items-center space-x-2 transition-all font-bold text-sm shadow-lg shadow-slate-200"
             >
-              <i className="fas fa-file-excel"></i>
-              <span>ส่งออก Excel {records.length > 0 ? `(${records.length})` : ''}</span>
+              <i className="fas fa-file-export"></i>
+              <span>ส่งออกไฟล์ Excel</span>
             </button>
           </div>
         </div>
-      </header>
+      </nav>
 
-      <main className="flex-grow max-w-7xl mx-auto w-full p-4 lg:p-8 flex flex-col lg:flex-row gap-8">
+      <main className="flex-grow max-w-7xl mx-auto w-full p-6 lg:p-10 flex flex-col lg:flex-row gap-10">
         
-        {/* Left Column */}
-        <div className="w-full lg:w-80 flex flex-col gap-6 shrink-0">
-          <div className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-100">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <i className="fas fa-plus-circle text-indigo-500"></i>
-              สแกนแผ่นป้าย
-            </h2>
+        {/* Left: Control Panel */}
+        <div className="w-full lg:w-[350px] shrink-0 space-y-6">
+          <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-200/60">
+            <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Scanner Input</h2>
             
             <div 
               onClick={() => !isProcessing && fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all group ${
+              className={`relative overflow-hidden aspect-square rounded-[24px] border-2 border-dashed flex flex-col items-center justify-center transition-all group ${
                 isProcessing 
-                ? 'border-slate-200 bg-slate-50 cursor-not-allowed' 
-                : 'border-slate-300 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50'
+                ? 'border-slate-200 bg-slate-50 cursor-wait' 
+                : 'border-slate-300 cursor-pointer hover:border-slate-900 hover:bg-slate-50'
               }`}
             >
-              <div className={`p-4 rounded-full mb-4 transition-transform ${isProcessing ? 'bg-slate-200 text-slate-400' : 'bg-indigo-50 text-indigo-600 group-hover:scale-110'}`}>
-                <i className={`fas ${isProcessing ? 'fa-circle-notch fa-spin' : 'fa-camera'} text-3xl`}></i>
+              {isProcessing && <div className="scanning-line"></div>}
+              
+              <div className={`w-16 h-16 rounded-full mb-4 flex items-center justify-center transition-all ${isProcessing ? 'bg-slate-200 text-slate-400' : 'bg-slate-100 text-slate-900 group-hover:scale-110'}`}>
+                <i className={`fas ${isProcessing ? 'fa-sync fa-spin' : 'fa-plus'} text-2xl`}></i>
               </div>
-              <p className="text-sm font-semibold text-slate-700 text-center">
-                {isProcessing ? `กำลังประมวลผล...` : 'เลือกรูปภาพแผ่นป้าย'}
+              <p className="text-sm font-bold text-slate-900">
+                {isProcessing ? 'กำลังอ่านข้อมูล...' : 'เพิ่มรูปภาพแผ่นป้าย'}
               </p>
-              <p className="text-xs text-slate-400 mt-2 text-center">รองรับการสแกนหลายแผ่นพร้อมกัน</p>
+              <p className="text-[11px] text-slate-400 mt-2 font-medium">PNG, JPG หรือภาพถ่าย</p>
               
               <input 
                 type="file" 
@@ -151,105 +153,84 @@ const App: React.FC = () => {
               />
             </div>
 
-            {isProcessing && (
-              <div className="mt-6">
-                <div className="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden">
-                  <div 
-                    className="bg-indigo-600 h-full transition-all duration-300"
-                    style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
-                  <span>ไฟล์ที่ {progress.current}/{progress.total}</span>
-                  <span>{Math.round((progress.current / progress.total) * 100)}%</span>
-                </div>
-              </div>
-            )}
-
             {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl flex items-start gap-2">
-                <i className="fas fa-circle-info mt-0.5"></i>
-                <span>{error}</span>
+              <div className="mt-6 p-4 bg-red-50 border border-red-100 text-red-700 text-xs rounded-2xl font-medium leading-relaxed">
+                <i className="fas fa-circle-exclamation mr-2"></i>
+                {error}
               </div>
             )}
 
             {previewImage && (
-              <div className="mt-8">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">ภาพล่าสุดที่สแกน</p>
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200 shadow-sm h-48">
-                  {isProcessing && <div className="absolute inset-0 bg-indigo-600/10 backdrop-blur-[1px] z-10 animate-pulse"></div>}
+              <div className="mt-8 pt-8 border-t border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Current Preview</p>
+                <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-slate-200 relative">
                   <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
+                  {isProcessing && <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                  </div>}
                 </div>
               </div>
             )}
           </div>
-
-          <div className="bg-slate-800 rounded-3xl p-6 text-white shadow-lg shadow-slate-200">
-            <h3 className="font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
-              <i className="fas fa-shield-halved text-emerald-400"></i>
-              System Core
-            </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              ระบบสแกนอัตโนมัติที่ช่วยแยกข้อมูลภาษาไทยจากสติกเกอร์พื้นขาวได้อย่างแม่นยำและรวดเร็ว
-            </p>
+          
+          <div className="p-1 px-4 text-center">
+             <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-loose">
+               System ID: VS-PRO-2025<br/>
+               Processing Module: V3.4.1
+             </p>
           </div>
         </div>
 
-        {/* Right Column */}
-        <div className="flex-grow flex flex-col">
-          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden flex flex-col h-full min-h-[500px]">
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                  <i className="fas fa-list-ul"></i>
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-slate-800">ข้อมูลที่ตรวจพบ</h2>
-                  <p className="text-xs text-slate-400">ทั้งหมด {records.length} รายการ</p>
-                </div>
-              </div>
+        {/* Right: Records Table */}
+        <div className="flex-grow">
+          <div className="bg-white rounded-[32px] shadow-sm border border-slate-200/60 overflow-hidden flex flex-col h-full">
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-900 tracking-tight">บันทึกข้อมูล</h2>
+              <span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase">
+                {records.length} Records
+              </span>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="flex-grow overflow-x-auto">
               {records.length > 0 ? (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/50 text-slate-500">
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-center">แผ่น</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">ชื่อ-นามสกุล / HN</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">รหัสอ้างอิง / ประเภท</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">หน่วยงาน / วันที่</th>
-                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-right">ลบ</th>
+                    <tr className="text-slate-400 border-b border-slate-50">
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">ภาพ</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">รายละเอียดผู้ป่วย</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">ข้อมูลการตรวจ</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">สถานที่ / วันที่</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-right">จัดการ</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-50">
                     {records.map((record) => (
-                      <tr key={record.id} className="hover:bg-indigo-50/30 transition-colors group">
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <div className="inline-block relative h-10 w-10 rounded-lg overflow-hidden border border-slate-200 shadow-sm">
-                            <img src={record.thumbnail} className="h-full w-full object-cover" />
+                      <tr key={record.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-8 py-5">
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm">
+                            <img src={record.thumbnail} className="w-full h-full object-cover" />
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-bold text-slate-800">{record.patientName}</div>
-                          <div className="text-xs text-indigo-500 font-semibold">{record.hn !== "N/A" ? `HN: ${record.hn}` : "-"}</div>
+                        <td className="px-8 py-5">
+                          <div className="text-sm font-black text-slate-900">{record.patientName}</div>
+                          <div className="text-xs font-bold text-indigo-600 mt-0.5">{record.hn !== "N/A" ? `HN: ${record.hn}` : '-'}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200 inline-block mb-1">
+                        <td className="px-8 py-5">
+                          <div className="text-[11px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block">
                             {record.referenceId}
                           </div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                          <div className="text-[10px] font-black text-slate-400 mt-1 uppercase">
                             {record.category}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-8 py-5">
                           <div className="text-xs font-bold text-slate-700">{record.hospitalDept}</div>
-                          <div className="text-[10px] text-slate-400">{record.date}</div>
+                          <div className="text-[10px] font-bold text-slate-400 mt-0.5">{record.date}</div>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-8 py-5 text-right">
                           <button 
                             onClick={() => deleteRecord(record.id)}
-                            className="text-slate-300 hover:text-red-500 transition-colors"
+                            className="text-slate-300 hover:text-red-500 transition-all p-2"
                           >
                             <i className="fas fa-trash-can"></i>
                           </button>
@@ -259,34 +240,18 @@ const App: React.FC = () => {
                   </tbody>
                 </table>
               ) : (
-                <div className="flex flex-col items-center justify-center py-32 text-slate-300">
-                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
-                    <i className="fas fa-id-card text-3xl"></i>
+                <div className="flex flex-col items-center justify-center py-40">
+                  <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                    <i className="fas fa-box-open text-3xl text-slate-200"></i>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-400">ไม่มีข้อมูล</h3>
-                  <p className="max-w-xs text-center text-sm mt-2 text-slate-400">
-                    อัปโหลดภาพถ่ายแผ่นป้ายสติกเกอร์เพื่อเริ่มต้นสกัดข้อมูล
-                  </p>
+                  <h3 className="text-base font-black text-slate-400 uppercase tracking-widest">No Data</h3>
+                  <p className="text-sm text-slate-400 mt-2 font-medium">ยังไม่มีข้อมูลสแกนในระบบ</p>
                 </div>
               )}
             </div>
           </div>
         </div>
       </main>
-
-      <footer className="bg-white border-t border-slate-200 py-4 px-8">
-        <div className="max-w-7xl mx-auto flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-slate-400">
-          <div className="flex items-center gap-4">
-            <span>Vision Processor v3.0</span>
-            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-            <span>Multi-label Architecture</span>
-          </div>
-          <div className="flex items-center gap-2 text-emerald-500">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-            <span>System Ready</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
